@@ -12,6 +12,8 @@ void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
+void run_history_command();
+
 int main (int argc, char **argv)
 {
     // Get list of paths to binary executables
@@ -38,8 +40,25 @@ int main (int argc, char **argv)
     //  For all other commands, check if an executable by that name is in one of the PATH directories
     //   If yes, execute it
     //   If no, print error statement: "<command_name>: Error command not found" (do include newline)
+    std::string user_input;
+    bool exited = false;
+    while (!exited)
+    {
+        printf("osshell> ");
+        std::getline(std::cin, user_input);
 
+        if(user_input == "exit"){
+            exited=true;
+            continue;
+        } else if (user_input == "history"){
+            run_history_command();
+            continue;
+        }
 
+        
+
+    }
+    
 
     /************************************************************************************
      *   Example code - remove in actual program                                        *
@@ -87,6 +106,12 @@ int main (int argc, char **argv)
 
 
     return 0;
+}
+
+void run_history_command(){
+    // TODO: Make the history command work
+    // For now:
+    printf("History: {:3}\n");
 }
 
 /*
