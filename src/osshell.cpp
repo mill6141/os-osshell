@@ -57,7 +57,7 @@ int main (int argc, char **argv)
             continue;
         } else if(user_input == "exit"){
             exited=true;
-            continue;
+            break;
         } else if (user_input == "history"){
             run_history_command(history, history_limit, history_index);
             continue;
@@ -155,6 +155,8 @@ void execute_commands(char **command_list_exec, std::vector<std::string> os_path
         }
 
         printf("Command not found\n");
+        exit(0);
+        
         
     } else{
         // This is the parent, so just wait for the child to finsih its task.
