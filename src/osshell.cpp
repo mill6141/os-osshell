@@ -12,6 +12,9 @@ void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
+
+void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index);
+
 int main (int argc, char **argv)
 {
     // Get list of paths to binary executables
@@ -20,7 +23,10 @@ int main (int argc, char **argv)
     splitString(os_path, ':', os_path_list);
 
     // Create list to store history
-    std::vector<std::string> history;
+    int history_limit = 128;
+    int history_index = 0;
+    std::vector<std::string> history(history_limit);
+    
 
     // Create variables for storing command user types
     std::string user_command;               // to store command user types in
@@ -38,8 +44,43 @@ int main (int argc, char **argv)
     //  For all other commands, check if an executable by that name is in one of the PATH directories
     //   If yes, execute it
     //   If no, print error statement: "<command_name>: Error command not found" (do include newline)
+    std::string user_input;
+    bool exited = false;
+    while (!exited)
+    {
+        printf("osshell> ");
+        std::getline(std::cin, user_input);
 
+        if(user_input.empty()){
+            continue;
+        } else if(user_input == "exit"){
+            exited=true;
+            continue;
+        } else if (user_input == "history"){
+            run_history_command(history, history_limit, history_index);
+            continue;
+        }
 
+        history[history_index % history_limit] = user_input;
+        history_index++;
+
+        
+        // Split the user input into command and parameters
+        splitString(user_input, ' ', command_list);
+        vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
+
+        // Check to see if the command exists in the path directories
+        if(!fileExecutableExists(command_list_exec[0])){
+            printf("%s: Error command not found\n", command_list_exec[0]);
+        } else {
+            // Execute the command using execv()
+            execute_commands(command_list_exec);
+        }
+
+        freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+
+    }
+    
 
     /************************************************************************************
      *   Example code - remove in actual program                                        *
@@ -89,6 +130,33 @@ int main (int argc, char **argv)
     return 0;
 }
 
+void run_history_command(std::vector<std::string>& history_list, int history_limit = 128, int history_index = 0){
+    // TODO: Make the history command work
+    // For now:
+    int i;
+    int cnt=1;
+    for (i = 0; i < history_limit; i++)
+    {
+        if(history_list[(i+history_index)%history_limit].empty()){
+            continue;
+        }
+        printf("  %d: %s\n", cnt++, history_list[(i+history_index)%history_limit].c_str());
+    }
+}
+
+void execute_commands(char **command_list_exec){
+    int pid = fork();
+    if(pid == 0){
+        // This is the child, so execute the command
+        execv(command_list_exec[0], command_list_exec);
+        // If execv returns, there was an error
+        printf("%s: Error executing command\n", command_list_exec[0]);
+    } else{
+        // This is the parent, so just wait for the child to finsih its task.
+        waitpid(pid, NULL, 0);
+    }
+}
+
 /*
    file_path: path to a file
    RETURN: true/false - whether or not that file exists and is executable
@@ -98,6 +166,10 @@ bool fileExecutableExists(std::string file_path)
     bool exists = false;
     // check if `file_path` exists
     // if so, ensure it is not a directory and that it has executable permissions
+
+    if(std::filesystem::exists(file_path) && !std::filesystem::is_directory(file_path) && access(file_path.c_str(), X_OK) == 0){
+        exists = true;
+    }
 
     return exists;
 }
