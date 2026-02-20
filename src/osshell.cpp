@@ -6,6 +6,7 @@
 #include <vector>
 #include <filesystem>
 #include <unistd.h>
+#include <sys/wait.h>
 
 bool fileExecutableExists(std::string file_path);
 void splitString(std::string text, char d, std::vector<std::string>& result);
@@ -14,6 +15,7 @@ void freeArrayOfCharArrays(char **array, size_t array_length);
 
 
 void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index);
+void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list);
 
 int main (int argc, char **argv)
 {
@@ -70,12 +72,7 @@ int main (int argc, char **argv)
         vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
 
         // Check to see if the command exists in the path directories
-        if(!fileExecutableExists(command_list_exec[0])){
-            printf("%s: Error command not found\n", command_list_exec[0]);
-        } else {
-            // Execute the command using execv()
-            execute_commands(command_list_exec);
-        }
+        execute_commands(command_list_exec, os_path_list);
 
         freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
 
@@ -144,13 +141,21 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
     }
 }
 
-void execute_commands(char **command_list_exec){
+void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list){
     int pid = fork();
     if(pid == 0){
-        // This is the child, so execute the command
-        execv(command_list_exec[0], command_list_exec);
-        // If execv returns, there was an error
-        printf("%s: Error executing command\n", command_list_exec[0]);
+        for(int i=0; i<os_path_list.size(); i++){
+            std::string filePath = os_path_list[i] + "/" + command_list_exec[0];
+            if(fileExecutableExists(filePath)){
+                // This is the child, so execute the command
+                execv(filePath.c_str(), command_list_exec);
+                // If execv returns, there was an error
+                printf("%s: Error executing command\n", command_list_exec[0]);
+            }
+        }
+
+        printf("Command not found\n");
+        
     } else{
         // This is the parent, so just wait for the child to finsih its task.
         waitpid(pid, NULL, 0);
