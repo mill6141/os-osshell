@@ -7,15 +7,16 @@
 #include <filesystem>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fstream>
 
 bool fileExecutableExists(std::string file_path);
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
-
 void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index);
 void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list);
+std::string filename = "history.txt";
 
 int main (int argc, char **argv)
 {
@@ -28,7 +29,16 @@ int main (int argc, char **argv)
     int history_limit = 128;
     int history_index = 0;
     std::vector<std::string> history(history_limit);
-    
+
+    // Initialize all history values from file:
+    { // new scope so the file auto closes
+        std::ifstream file(filename); // open file to read
+        std::string line{}; // make it empty
+        while (std::getline(file, line))
+        {
+            history[history_index++] = line;
+        }
+    }
 
     // Create variables for storing command user types
     std::string user_command;               // to store command user types in
@@ -57,6 +67,17 @@ int main (int argc, char **argv)
             continue;
         } else if(user_input == "exit"){
             exited=true;
+                // Initialize all history values from file:
+                { // new scope so the file auto closes
+                    std::ofstream file(filename); // open file to read
+                    for (int i = 0; i < history_limit; i++)
+                    {
+                        if(history[(i+history_index)%history_limit].empty()){
+                            continue;
+                        }
+                        file << history[(i+history_index)%history_limit] << "\n";
+                    }
+                }
             break;
         } else if (user_input == "history"){
             run_history_command(history, history_limit, history_index);
@@ -66,7 +87,6 @@ int main (int argc, char **argv)
         history[history_index % history_limit] = user_input;
         history_index++;
 
-        
         // Split the user input into command and parameters
         splitString(user_input, ' ', command_list);
         vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
@@ -75,55 +95,7 @@ int main (int argc, char **argv)
         execute_commands(command_list_exec, os_path_list);
 
         freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-
     }
-    
-
-    /************************************************************************************
-     *   Example code - remove in actual program                                        *
-     ************************************************************************************/
-    // Shows how to loop over the directories in the PATH environment variable
-    int i;
-    for (i = 0; i < os_path_list.size(); i++)
-    {
-        printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
-    }
-    printf("------\n");
-    
-    // Shows how to split a command and prepare for the execv() function
-    std::string example_command = "ls -lh";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-
-    // Second example command - reuse the `command_list` and `command_list_exec` variables
-    example_command = "echo \"Hello world\" I am alive!";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-    /************************************************************************************
-     *   End example code                                                               *
-     ************************************************************************************/
-
-
     return 0;
 }
 

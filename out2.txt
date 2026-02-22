@@ -1,0 +1,19 @@
+Welcome to OSShell! Please enter your commands ('exit' to quit).
+osshell> /usr/bin/grep
+osshell>   1: which grep
+osshell> Command not found
+osshell> Hello there!
+osshell> Command not found
+osshell> Command not found
+osshell> ./src/osshell.cpp
+osshell> Command not found
+osshell> CXX= g++
+osshell>   1: which grep
+  2: badexe
+  3: echo "Hello there!"
+  4: history 3x
+  5: history 3
+  6: find . -name "osshell.cpp"
+  7: history clear
+  8: head -n 1 Makefile
+osshell> 
