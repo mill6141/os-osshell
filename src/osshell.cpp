@@ -81,14 +81,8 @@ int main (int argc, char **argv)
                     }
                 }
             break;
-        } /*else if (user_input == "history"){
-            run_history_command(history, history_limit, history_index);
-            history[history_index % history_limit] = user_input;
-            history_index++;
-            continue;
-        }*/
+        } 
 
-        
         // Split the user input into command and parameters
         splitString(user_input, ' ', command_list);
         
@@ -151,14 +145,17 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
                 throw std::exception();
             }
     
-            cnt = history_index - arg + 1;
+            if(history_index > 128){
+                cnt = history_limit - arg + 1;
+            } else{
+                cnt = (history_index%history_limit) - arg + 1;
+            }
             if(arg > 0){
                 for (i = arg; i > 0; i--)
                 {
                     printf("  %d: %s\n", cnt++, history_list[(history_index-i)%history_limit].c_str());
                 }
             }
-    
         } catch (...) {
             printf("Error: history expects an integer > 0 (or 'clear')\n");
         }
