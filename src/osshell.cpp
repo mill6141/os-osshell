@@ -14,7 +14,7 @@ void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
-void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index);
+void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index, std::vector<std::string>& cmd_list);
 void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list);
 std::string filename = "history.txt";
 
@@ -66,6 +66,8 @@ int main (int argc, char **argv)
         if(user_input.empty()){
             continue;
         } else if(user_input == "exit"){
+            history[history_index % history_limit] = user_input;
+            history_index++;
             exited=true;
                 // Initialize all history values from file:
                 { // new scope so the file auto closes
@@ -79,16 +81,33 @@ int main (int argc, char **argv)
                     }
                 }
             break;
-        } else if (user_input == "history"){
+        } /*else if (user_input == "history"){
             run_history_command(history, history_limit, history_index);
+            history[history_index % history_limit] = user_input;
+            history_index++;
             continue;
-        }
+        }*/
 
-        history[history_index % history_limit] = user_input;
-        history_index++;
-
+        
         // Split the user input into command and parameters
         splitString(user_input, ' ', command_list);
+        
+        // check if the command is history for multiple arguments
+        if(command_list[0] == "history"){
+            run_history_command(history, history_limit, history_index, command_list); // print history
+            if((command_list.size() > 1) && (command_list[1] != "clear")) { // two arguments, but not history clear
+                history[history_index % history_limit] = user_input;
+                history_index++;
+            } else if(command_list.size() == 1){ // one argument history
+                history[history_index % history_limit] = user_input;
+                history_index++;
+            }
+            continue;
+        } else{
+            history[history_index % history_limit] = user_input;
+            history_index++; // increment after so that the latest history command does not print with history
+        }
+
         vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
 
         // Check to see if the command exists in the path directories
@@ -99,17 +118,51 @@ int main (int argc, char **argv)
     return 0;
 }
 
-void run_history_command(std::vector<std::string>& history_list, int history_limit = 128, int history_index = 0){
-    // TODO: Make the history command work
-    // For now:
-    int i;
+void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index, std::vector<std::string>& cmd_list){
     int cnt=1;
-    for (i = 0; i < history_limit; i++)
-    {
-        if(history_list[(i+history_index)%history_limit].empty()){
-            continue;
+    int i = 0;
+
+    if(cmd_list.size() == 1){ // basic history command
+        for (i = 0; i < history_limit; i++)
+        {
+            if(history_list[(i+history_index)%history_limit].empty()){
+                continue;
+            }
+            printf("  %d: %s\n", cnt++, history_list[(i+history_index)%history_limit].c_str());
         }
-        printf("  %d: %s\n", cnt++, history_list[(i+history_index)%history_limit].c_str());
+    } else if(cmd_list[1] == "clear") { // clear history
+        // clear file
+        std::ofstream ofs;
+        ofs.open("history.txt", std::ofstream::out | std::ofstream::trunc);
+        ofs.close();
+
+        // clear array
+        for(int j = 0; j < history_limit; j++){
+            history_list[j] = "";
+        }
+        history_index = 0;
+    } else { // number arguments
+        try { // necessary for out of bounds catch and history 3x type catches
+            size_t pos = 0;
+            int arg = std::stoi(cmd_list[1], &pos);
+    
+            // Reject partial parses like "3x" (stoi would parse 3 and stop at 'x')
+            if (pos != cmd_list[1].size() || arg <= 0) {
+                throw std::exception();
+            }
+    
+            cnt = history_index - arg + 1;
+            if(arg > 0){
+                for (i = arg; i > 0; i--)
+                {
+                    printf("  %d: %s\n", cnt++, history_list[(history_index-i)%history_limit].c_str());
+                }
+            }
+    
+        } catch (...) {
+            printf("Error: history expects an integer > 0 (or 'clear')\n");
+        }
+
     }
 }
 
@@ -127,9 +180,7 @@ void execute_commands(char **command_list_exec, std::vector<std::string> os_path
         }
 
         printf("Command not found\n");
-        exit(0);
-        
-        
+        exit(0); // kill child
     } else{
         // This is the parent, so just wait for the child to finsih its task.
         waitpid(pid, NULL, 0);
