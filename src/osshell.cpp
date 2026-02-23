@@ -81,14 +81,8 @@ int main (int argc, char **argv)
                     }
                 }
             break;
-        } /*else if (user_input == "history"){
-            run_history_command(history, history_limit, history_index);
-            history[history_index % history_limit] = user_input;
-            history_index++;
-            continue;
-        }*/
+        } 
 
-        
         // Split the user input into command and parameters
         splitString(user_input, ' ', command_list);
         
@@ -151,14 +145,17 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
                 throw std::exception();
             }
     
-            cnt = history_index - arg + 1;
+            if(history_index > 128){
+                cnt = history_limit - arg + 1;
+            } else{
+                cnt = (history_index%history_limit) - arg + 1;
+            }
             if(arg > 0){
                 for (i = arg; i > 0; i--)
                 {
                     printf("  %d: %s\n", cnt++, history_list[(history_index-i)%history_limit].c_str());
                 }
             }
-    
         } catch (...) {
             printf("Error: history expects an integer > 0 (or 'clear')\n");
         }
@@ -169,13 +166,27 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
 void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list){
     int pid = fork();
     if(pid == 0){
-        for(int i=0; i<os_path_list.size(); i++){
-            std::string filePath = os_path_list[i] + "/" + command_list_exec[0];
+
+        // Check to see if it's a path to an exec
+        char c = command_list_exec[0][0];
+        if((c == '.') || (c=='/')){
+            std::string filePath = command_list_exec[0];
             if(fileExecutableExists(filePath)){
                 // This is the child, so execute the command
                 execv(filePath.c_str(), command_list_exec);
                 // If execv returns, there was an error
                 printf("%s: Error executing command\n", command_list_exec[0]);
+            }
+        } else{
+            // Default checking PATH
+            for(int i=0; i<os_path_list.size(); i++){
+                std::string filePath = os_path_list[i] + "/" + command_list_exec[0];
+                if(fileExecutableExists(filePath)){
+                    // This is the child, so execute the command
+                    execv(filePath.c_str(), command_list_exec);
+                    // If execv returns, there was an error
+                    printf("%s: Error executing command\n", command_list_exec[0]);
+                }
             }
         }
 
