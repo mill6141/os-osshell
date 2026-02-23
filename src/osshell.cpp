@@ -7,15 +7,16 @@
 #include <filesystem>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fstream>
 
 bool fileExecutableExists(std::string file_path);
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
-
-void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index);
+void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index, std::vector<std::string>& cmd_list);
 void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list);
+std::string filename = "history.txt";
 
 int main (int argc, char **argv)
 {
@@ -28,7 +29,16 @@ int main (int argc, char **argv)
     int history_limit = 128;
     int history_index = 0;
     std::vector<std::string> history(history_limit);
-    
+
+    // Initialize all history values from file:
+    { // new scope so the file auto closes
+        std::ifstream file(filename); // open file to read
+        std::string line{}; // make it empty
+        while (std::getline(file, line))
+        {
+            history[history_index++] = line;
+        }
+    }
 
     // Create variables for storing command user types
     std::string user_command;               // to store command user types in
@@ -56,88 +66,100 @@ int main (int argc, char **argv)
         if(user_input.empty()){
             continue;
         } else if(user_input == "exit"){
+            history[history_index % history_limit] = user_input;
+            history_index++;
             exited=true;
-            continue;
-        } else if (user_input == "history"){
-            run_history_command(history, history_limit, history_index);
-            continue;
-        }
+                // Initialize all history values from file:
+                { // new scope so the file auto closes
+                    std::ofstream file(filename); // open file to read
+                    for (int i = 0; i < history_limit; i++)
+                    {
+                        if(history[(i+history_index)%history_limit].empty()){
+                            continue;
+                        }
+                        file << history[(i+history_index)%history_limit] << "\n";
+                    }
+                }
+            break;
+        } 
 
-        history[history_index % history_limit] = user_input;
-        history_index++;
-
-        
         // Split the user input into command and parameters
         splitString(user_input, ' ', command_list);
+        
+        // check if the command is history for multiple arguments
+        if(command_list[0] == "history"){
+            run_history_command(history, history_limit, history_index, command_list); // print history
+            if((command_list.size() > 1) && (command_list[1] != "clear")) { // two arguments, but not history clear
+                history[history_index % history_limit] = user_input;
+                history_index++;
+            } else if(command_list.size() == 1){ // one argument history
+                history[history_index % history_limit] = user_input;
+                history_index++;
+            }
+            continue;
+        } else{
+            history[history_index % history_limit] = user_input;
+            history_index++; // increment after so that the latest history command does not print with history
+        }
+
         vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
 
         // Check to see if the command exists in the path directories
         execute_commands(command_list_exec, os_path_list);
 
         freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-
     }
-    
-
-    /************************************************************************************
-     *   Example code - remove in actual program                                        *
-     ************************************************************************************/
-    // Shows how to loop over the directories in the PATH environment variable
-    int i;
-    for (i = 0; i < os_path_list.size(); i++)
-    {
-        printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
-    }
-    printf("------\n");
-    
-    // Shows how to split a command and prepare for the execv() function
-    std::string example_command = "ls -lh";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-
-    // Second example command - reuse the `command_list` and `command_list_exec` variables
-    example_command = "echo \"Hello world\" I am alive!";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-    /************************************************************************************
-     *   End example code                                                               *
-     ************************************************************************************/
-
-
     return 0;
 }
 
-void run_history_command(std::vector<std::string>& history_list, int history_limit = 128, int history_index = 0){
-    // TODO: Make the history command work
-    // For now:
-    int i;
+void run_history_command(std::vector<std::string>& history_list, int history_limit, int history_index, std::vector<std::string>& cmd_list){
     int cnt=1;
-    for (i = 0; i < history_limit; i++)
-    {
-        if(history_list[(i+history_index)%history_limit].empty()){
-            continue;
+    int i = 0;
+
+    if(cmd_list.size() == 1){ // basic history command
+        for (i = 0; i < history_limit; i++)
+        {
+            if(history_list[(i+history_index)%history_limit].empty()){
+                continue;
+            }
+            printf("  %d: %s\n", cnt++, history_list[(i+history_index)%history_limit].c_str());
         }
-        printf("  %d: %s\n", cnt++, history_list[(i+history_index)%history_limit].c_str());
+    } else if(cmd_list[1] == "clear") { // clear history
+        // clear file
+        std::ofstream ofs;
+        ofs.open("history.txt", std::ofstream::out | std::ofstream::trunc);
+        ofs.close();
+
+        // clear array
+        for(int j = 0; j < history_limit; j++){
+            history_list[j] = "";
+        }
+        history_index = 0;
+    } else { // number arguments
+        try { // necessary for out of bounds catch and history 3x type catches
+            size_t pos = 0;
+            int arg = std::stoi(cmd_list[1], &pos);
+    
+            // Reject partial parses like "3x" (stoi would parse 3 and stop at 'x')
+            if (pos != cmd_list[1].size() || arg <= 0) {
+                throw std::exception();
+            }
+    
+            if(history_index > 128){
+                cnt = history_limit - arg + 1;
+            } else{
+                cnt = (history_index%history_limit) - arg + 1;
+            }
+            if(arg > 0){
+                for (i = arg; i > 0; i--)
+                {
+                    printf("  %d: %s\n", cnt++, history_list[(history_index-i)%history_limit].c_str());
+                }
+            }
+        } catch (...) {
+            printf("Error: history expects an integer > 0 (or 'clear')\n");
+        }
+
     }
 }
 
@@ -155,7 +177,7 @@ void execute_commands(char **command_list_exec, std::vector<std::string> os_path
         }
 
         printf("Command not found\n");
-        
+        exit(0); // kill child
     } else{
         // This is the parent, so just wait for the child to finsih its task.
         waitpid(pid, NULL, 0);
