@@ -115,7 +115,7 @@ int main (int argc, char **argv)
 void run_history_command(std::vector<std::string>& history_list, int history_limit, int *history_index, std::vector<std::string>& cmd_list){
     int cnt=1;
     int i = 0;
-    printf("History Index: %d\n", *history_index);
+    
 
     if(cmd_list.size() == 1){ // basic history command
         for (i = 0; i < history_limit; i++)
@@ -176,6 +176,7 @@ void execute_commands(char **command_list_exec, std::vector<std::string> os_path
         char c = command_list_exec[0][0];
         if((c == '.') || (c=='/')){
             std::string filePath = command_list_exec[0];
+            //printf(filePath.c_str());
             if(fileExecutableExists(filePath)){
                 // This is the child, so execute the command
                 execv(filePath.c_str(), command_list_exec);
@@ -195,7 +196,7 @@ void execute_commands(char **command_list_exec, std::vector<std::string> os_path
             }
         }
 
-        printf("Command not found\n");
+        printf( "%s: Error command not found\n", command_list_exec[0]);
         exit(0); // kill child
     } else{
         // This is the parent, so just wait for the child to finsih its task.
