@@ -147,7 +147,7 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
             }
 
             if(arg > *history_index){
-                throw std::exception();
+                arg = *history_index;
             }
     
             if(*history_index >= 128){

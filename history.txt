@@ -1,5 +1,6 @@
-history 1
-history 1
-history 3
-history 3
+head -n 1 Makefile
+history
+exit
+history 100
+history
 exit
