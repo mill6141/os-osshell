@@ -166,13 +166,27 @@ void run_history_command(std::vector<std::string>& history_list, int history_lim
 void execute_commands(char **command_list_exec, std::vector<std::string> os_path_list){
     int pid = fork();
     if(pid == 0){
-        for(int i=0; i<os_path_list.size(); i++){
-            std::string filePath = os_path_list[i] + "/" + command_list_exec[0];
+
+        // Check to see if it's a path to an exec
+        char c = command_list_exec[0][0];
+        if((c == '.') || (c=='/')){
+            std::string filePath = command_list_exec[0];
             if(fileExecutableExists(filePath)){
                 // This is the child, so execute the command
                 execv(filePath.c_str(), command_list_exec);
                 // If execv returns, there was an error
                 printf("%s: Error executing command\n", command_list_exec[0]);
+            }
+        } else{
+            // Default checking PATH
+            for(int i=0; i<os_path_list.size(); i++){
+                std::string filePath = os_path_list[i] + "/" + command_list_exec[0];
+                if(fileExecutableExists(filePath)){
+                    // This is the child, so execute the command
+                    execv(filePath.c_str(), command_list_exec);
+                    // If execv returns, there was an error
+                    printf("%s: Error executing command\n", command_list_exec[0]);
+                }
             }
         }
 
